@@ -1,0 +1,40 @@
+---
+title: "Week 2 Assignment, DATA607 Fall 2016"
+author: "Leland Randles"
+date: "September 14, 2016"
+output: html_document
+---
+
+### Movies Database
+
+Nine individuals watched some or all of eight different movies and provided their ratings for the movie on a scale from 1 (poor) to 5 (excellent).  Data was collected via oral surveys.  
+
+The data was loaded to a MySQL database schema called 'movies'.  The SQL scripts to build the database and load the data is available on GitHub:  
+
+<https://github.com/LelandoSupreme/DATA607/blob/master/Randles_Week2_Assignment_DATA607_movies.sql>
+
+The database is constructed with three tables:  movies, ratings, and viewers.  The movies table stores movies (titles, release year, and genre), the viewers table stores people (name, age, sex) who have viewed one or more of the movies in the movies database, and the ratings table contains the ratings individuals gave to the movies they watched.
+
+A materialized view called 'v_ratings_history' was created which brings together all three of these tables for all ratings ever submitted.  This view is the data we want to bring into R as a data frame.
+
+## Creating R Data Frame From 'movies' Database
+
+To facilitate the loading of data from MySQL to an R data frame, I loaded the "RMySQL" package.
+
+```{r results='hide', message=FALSE, warning=FALSE}
+install.packages("RMySQL",repos='http://mirrors.nics.utk.edu/cran/')
+library(RMySQL)
+```
+
+Once the package was installed, I connected to the database and created a data frame from the 'v_ratings_history' view.
+
+```{r load-data, eval=TRUE}
+# Get the MySQL driver
+drv = dbDriver("MySQL")
+# Create a connection to the MySQL database
+con <- dbConnect(drv, user = 'root', password = 'temp0917!', dbname = 'movies')
+# Create the Ratings data frame
+ratings <- dbReadTable(con, "v_ratings_history")
+# View the Ratings data frame
+head(ratings)
+```
