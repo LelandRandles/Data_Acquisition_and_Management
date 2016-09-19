@@ -1,0 +1,149 @@
+---
+title: "Week 3 Assignment, DATA607 Fall 2016"
+author: "Leland Randles"
+date: "September 18, 2016"
+output: html_document
+---
+
+#### 3. Copy the introductory example. The vector `name` stores the extracted names.
+
+First, load the 'stringr' package:  
+```{r results='hide', message=FALSE, warning=FALSE}
+install.packages("stringr",repos='http://mirrors.nics.utk.edu/cran/')
+library(stringr)
+```  
+
+Then, re-create the introductory example:  
+```{r intro-ex, eval=TRUE}
+# Load data into 'raw.data' character vector
+raw.data <- "555-1239Moe Szyslak(636) 555-0113Burns, C. Montgomery555-6542Rev. Timothy Lovejoy555 8904Ned Flanders636-555-3226Simpson, Homer5543642Dr. Julius Hibbert"
+
+# Use code provided in book to create character vector 'name' 
+# which contains the names of the Simpson's characters
+name <- unlist(str_extract_all(raw.data, "[[:alpha:]., ]{2,}"))
+name
+```  
+  
+  
+**_Problems_**  
+**(a) Use the tools of this chapter to rearrange the vector so that all elements conform to the standard `first_name` `last_name`.**  
+
+```{r 3a, eval=TRUE}
+# First name for strings with commas
+fc <- str_trim(str_sub(name, start = str_locate(name, ",")[,1] + 1, end = str_length(name)))
+# Last name for strings with commas
+lc <- str_trim(str_sub(name, start = 1, end = str_locate(name, ",")[,1] - 1))
+# First name for strings without commas and a single space
+fs <- str_sub(name, start = 1, end = str_locate(name, " ")[,1] - 1)
+# Last name for strings without commas and a single space
+ls <- str_sub(name, start = str_locate(name, " ")[,1] + 1, end = str_length(name))
+# Everything after the first space for all strings
+as <- str_sub(name, start = str_locate(name, " ")[,1] + 1, end = str_length(name))
+# First name
+firstname <- ifelse(str_detect(name, ","), fc, ifelse(str_count(name, " ") == 2, ifelse(str_detect(as, " "), str_sub(as, start = 1, end = str_locate(as, " ")[,1] - 1), as), fs))
+# Last name
+lastname <- ifelse(str_detect(name, ","), lc, ifelse(str_count(name, " ") == 2, ifelse(str_detect(as, " "), str_sub(as, start = str_locate(as, " ")[,1] + 1, end = str_length(as)), as), ls))
+# Formatted name
+fullname <- str_c(firstname, " ", lastname)
+fullname
+```  
+
+**(b) Construct a logical vector indicating whether a character has a title (i.e., `Rev.` and `Dr.`)**  
+
+```{r 3b, eval = TRUE}
+# Look for the presence of any of a number 
+# of name prefixes/titles/honorifics
+str_detect(name, "Ms.|Miss|Mrs.|Mr.|Mister|Rev.|Reverend|Dr.|Doctor|Prof.|Professor|Father|Hon.|Honorable|Pres.|President|Gov.|Governer|Msgr.|Monsignor|Sen.|Senator")
+```  
+
+**(c) Construct a logical vector indicating whether a character has a second name.**  
+
+```{r 3c, eval = TRUE}
+# Copy name into new vector prior to replacing it
+name_count <- name
+# I took 'second name' to mean the individual 
+# has two names prior to their last name.
+# Therefore, I first replaced any name prefixes/titles/honorifics
+# with a null string, then I trimmed the results, and then created
+# a boolean condition based on whether the count of spaces was 
+# greater than one, which would be true for anyone with a 2nd name.
+str_count(str_trim(str_replace_all(name_count, "Ms.|Miss|Mrs.|Mr.|Mister|Rev.|Reverend|Dr.|Doctor|Prof.|Professor|Father|Hon.|Honorable|Pres.|President|Gov.|Governer|Msgr.|Monsignor|Sen.|Senator", "")), " ") > 1
+```  
+
+#### 4. Describe the types of strings that conform to the following regular expressions and construct an example that is matched by the regular expression.  
+
+**_Problems_**  
+**(a) [0-9]+\\\\$**  
+
+The [0-9]+ part looks for any string of digits 0 thru 9 that is 1 or more characters long. The two backslahes tells us to regard the $ as a character to be matched, not a metacharacter. Hence, any string of digits followed by a dollar sign would be matched by this regular expression.  
+
+```{r 4a, eval = TRUE}
+# Create example string
+t <- "This is an odd string: 234$.  Why the trailing dollar sign?"
+# Test regular expression to see if explanation provided is correct
+unlist(str_extract_all(t, "[0-9]+\\$"))
+```  
+
+**(b) \\\\b[a-z]{1,4}\\\\b**  
+
+This regular expression looks at each word edge and matches lower case letters at least once, but not more than four times, and then requires there to be a word edge at the end of the string.  Therefore, it will only match lower case words that are four characters or less in length.  
+
+```{r 4b, eval = TRUE}
+# Create example string
+t <- "Any lower case word in this sentence with four or less characters will be matched."
+# Test regular expression to see if explanation provided is correct
+unlist(str_extract_all(t, "\\b[a-z]{1,4}\\b"))
+```  
+
+**(c) \.\*?\\\\\.txt$**  
+
+The dot represents any character. It is followed by an asterisk, which means that the character can be matched zero or more times.  The question mark tells us that the preceding item is optional, which means we don't have to have any characters at all.  The two backslashes tell us to treat the second dot literally (as a character instead of a metacharacter), which means we're trying to match ".txt" within the string.  The dollar sign tells us the ".txt" should be at the end of the string.  This regular expression should match ".txt" or any string of characters followed by ".txt".
+
+```{r 4c, eval = TRUE}
+# Create example strings
+t <- c(".txt","a.txt","test.txt", "big_data.txt", "2345.txt")
+# Test regular expression to see if explanation provided is correct
+unlist(str_extract_all(t, ".*?\\.txt$"))
+```  
+
+**(d) \\\\d{2}\/\\\\d{2}\/\\\\d{4}**  
+
+The two backslashes and the 'd' looks for numerical digits, and the {_x_} tells us how many numerical digits to look for.  In between three sets of numerical digits the expression looks for the forward slash character.  Thus, this regular expression would match any date in a mm/dd/yyyy or dd/mm/yyyy format, or even any string in that format even it was not a valid date (i.e., "34/99/0002").  It would not match any dates that did not use a two-digit day or month, or a year which was not four digits.
+
+```{r 4d, eval = TRUE}
+# Create example strings
+t <- c("2/15/2016","04/12/2015","26/03/1968","1/1/2011","34/99/0002","2/3/978")
+# Test regular expression to see if explanation provided is correct
+unlist(str_extract_all(t, "\\d{2}/\\d{2}/\\d{4}"))
+```  
+
+**(e) <(.+?)>.+?</\\\\1>**  
+
+This regular expression matches any string that starts with '<', followed by one or more characters. Note that the one or more characters part (dot - plus - question mark) is in parentheses. After this, the '>' character is matched, then one or more characters again, and then '</'. After this, it matches the same string which was matched earlier using the code inside the aforementioned parentheses (this is what the \\1 does).  Then, it looks for '>'.  This looks like it is meant to match any HTML tag set that has one or more characters between the beginning tag and the closing tag.  For example, '\<h1>My First Heading\</h1>' would match, but '\<h1>\</h1>' would not.  Nor would any HTML codings which don't have an opening tag and closing tag, such as img src.
+
+```{r 4e, eval = TRUE}
+# Create example strings
+t <- c("<h1>My First Heading</h1>","<h1></h1>","<p>P. Sherman<br>42 Wallaby Way<br>Sydney</p>","<img src='smiley.gif' alt='Smiley face' height='42' width='42'>")
+# Test regular expression to see if explanation provided is correct
+unlist(str_extract_all(t, "<(.+?)>.+?</\\1>"))
+```  
+
+#### 9. The following code hides a secret message. Crack it with R and regular expressions.  _Hint:  Some of the characters are more revealing than others!_
+
+c1copCow1zmstc0d87wnkig7OvdicpNuggvhryn92Gjuwczi8hqrfpRxs5Aj5dwpn0Ta   woUwisdij7Lj8kpf0w3AT5Idr3coc0bt7yczjatOaootj55t3Nj3ne6c4Sfek.r1w1Yw  
+wojigOd6vrfUrbz2.2bkAnbhzgv4R9i05zEcrop.wAgnb.SqoU65fPalotfb7wEm24k6  
+t3sR9zqe5fy89n6Nd5t9kc4fE905gmc4Rgxo5nhDk!gr
+
+```{r ec, eval = TRUE}
+# Put code into character vector
+t <- "c1copCow1zmstc0d87wnkig7OvdicpNuggvhryn92Gjuwczi8hqrfpRxs5Aj5dwpn0TanwoUwisdij7Lj8kpf0w3AT5Idr3coc0bt7yczjatOaootj55t3Nj3ne6c4Sfek.r1w1YwwojigOd6vrfUrbz2.2bkAnbhzgv4R9i05zEcrop.wAgnb.SqoU65fPalotfb7wEm24k6t3sR9zqe5fy89n6Nd5t9kc4fE905gmc4Rgxo5nhDk!gr"
+# Extract capital letters and punctuation characters.
+ec <- unlist(str_extract_all(t, "[[:upper:]]|[[:punct:]]"))
+# Combine all elements of extracted vector into one string
+os <- paste(ec, collapse = '')
+# Replace the periods with a space
+secret_message <- str_replace_all(os, "\\.", " ")
+secret_message
+```  
+
+And proud of it, mind you.  
