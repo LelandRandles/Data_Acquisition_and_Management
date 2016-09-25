@@ -1,0 +1,106 @@
+---
+title: "Project 1, DATA607 Fall 2016"
+author: "Leland Randles"
+date: "September 25, 2016"
+output: html_document
+---
+
+### Project 1 - Chess Tournament Results
+
+The assignment is to take a text file containing chess tournament results and generate a .csv containing the following information for all of the players in the file:  the player's name, the player's state, their total number of points, the player's pre-rating, and the average pre-chess rating of all their opponents.  
+
+I started by reading the text file into R as a character vector:  
+
+```{r rl, eval=TRUE}
+# Connect to file, read it into raw_string object, close 
+con <- file("tournamentinfo.txt")
+raw_string <- readLines(con)
+close(con)
+```  
+
+Looking at the first nine rows of the file, the challenges of extracting the desired data become apparent: the file has header records, separator rows, and each player's information spans two rows.
+
+```{r h, eval=TRUE}
+head(raw_string, 9)
+```  
+
+I decided to extract the data using the following methodology:  
+
+1. Strip header rows and separator lines from the data  
+2. Subset the odd rows from the remaining data  
+3. Subset the even rows from the remaining data  
+4. Combine the odd and even rows into a two-column data frame  
+5. Parse the desired data from the two-column data frame, computing values where necessary  
+6. Add columns to compute the average pre-chess rating of their opponents  
+7. Finalize data frame by selecting five desired columns
+
+```{r transform, eval=TRUE}
+# Convert character vector to data frame  
+raw_string_df <- as.data.frame(raw_string, col.names = "raw_string", stringsAsFactors = FALSE)  
+# Subset to exclude header rows and separator rows  
+raw_string_df_ss <- subset(raw_string_df, substr(raw_string,1,6) != "------" & substr(raw_string,1,6) != " Pair " & substr(raw_string,1,6) != " Num  ")
+# Create vector of odd rows
+c1 <- raw_string_df_ss[1:nrow(raw_string_df_ss) %% 2 == 1, ]  
+# Create vector of even rows
+c2 <- raw_string_df_ss[1:nrow(raw_string_df_ss) %% 2 == 0, ]
+# Combine c1 and c2 into two-column data frame  
+raw_string_final <- as.data.frame(cbind(c1, c2), stringsAsFactors = FALSE)
+# Now there is one row per player and the data is ready to parse
+head(raw_string_final)
+```  
+
+Next, I loaded the 'stringr' package so I could use its functions to parse the data.  
+
+```{r results='hide', message=FALSE, warning=FALSE}
+install.packages("stringr",repos='http://mirrors.nics.utk.edu/cran/')
+library(stringr)
+```  
+
+```{r parse, eval=TRUE}
+# Extract player_id
+player_id <- as.integer(substr(raw_string_final$c1, 1, 5))
+# Extract player name
+player_name <- str_trim(substr(raw_string_final$c1, 9, 40))
+# Extract state
+state <- str_trim(substr(raw_string_final$c2, 1, 5))
+# Extract points
+pts <- as.double(substr(raw_string_final$c1, 42, 46))
+# Extract pre-rating
+pre_rating <- as.integer(substr(raw_string_final$c2, 22, 26))
+# Compute number of games played by counting Ws, Ls and Ds from portion of string containing rounds 1-7
+num_games <- str_count(substr(raw_string_final$c1, 47, 89), "W") + str_count(substr(raw_string_final$c1, 47, 89), "L") + str_count(substr(raw_string_final$c1, 47, 89), "D")
+# Extract Round 1 thru Round 7 opponents
+rd1_opp <- as.integer(substr(raw_string_final$c1, 49, 52))
+rd2_opp <- as.integer(substr(raw_string_final$c1, 55, 58))
+rd3_opp <- as.integer(substr(raw_string_final$c1, 61, 64))
+rd4_opp <- as.integer(substr(raw_string_final$c1, 67, 70))
+rd5_opp <- as.integer(substr(raw_string_final$c1, 73, 76))
+rd6_opp <- as.integer(substr(raw_string_final$c1, 79, 82))
+rd7_opp <- as.integer(substr(raw_string_final$c1, 85, 88))
+```  
+
+At this point, all of the information needed to build the final data frame has been extracted.  The next steps are to combine the extract vectors into a data frame, calculate the average pre-chess rating of their opponents, subset the final data frame, and write the final data frame to a .csv file.  
+
+```{r create_csv, eval=TRUE}
+# Combine the extract vectors into a data frame  
+chess_df_pre <- as.data.frame(cbind(player_id, player_name, state, pts, pre_rating, num_games, rd1_opp, rd2_opp, rd3_opp, rd4_opp, rd5_opp, rd6_opp, rd7_opp), stringsAsFactors = FALSE)
+# Create an empty vector to fill with calculated average pre-chess ratings of opponents  
+ttl_vect <- vector()
+# Use loop to calculate total pre-rating of opponents
+for(i in 1:nrow(chess_df_pre)) {
+    v1 <- as.numeric(as.vector(chess_df_pre[i, 7:13]))
+    v2 <- v1[!is.na(v1)]
+    ss <- subset(chess_df_pre, chess_df_pre$player_id %in% v2)
+    ttl <- sum(as.integer(ss$pre_rating))
+    ttl_vect <- c(ttl_vect, ttl)
+}
+# Create a new column populated with total pre-rating of opponents
+chess_df_pre$total_opponents_pre_rating <- ttl_vect
+# Create a new column populated with the average pre-chess rating of their opponents
+chess_df_pre$opp_ave_pre_rating <- round(chess_df_pre$total_opponents_pre_rating / as.integer(chess_df_pre$num_games), digits = 0)
+# Subset desired columns
+chess_df <- subset(chess_df_pre, select = c("player_name","state","pts","pre_rating","opp_ave_pre_rating"))  
+# Write result to .csv
+write.csv(chess_df, file = "chess_df.csv", row.names = FALSE)
+head(chess_df)
+```  
