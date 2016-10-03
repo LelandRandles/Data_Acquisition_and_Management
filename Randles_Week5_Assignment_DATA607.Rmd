@@ -1,0 +1,91 @@
+---
+title: "Week 5 Assignment, DATA607 Fall 2016"
+author: "Leland Randles"
+date: "October 2, 2016"
+output: html_document
+---
+
+### Tidying and Transforming Data
+
+The assignment is to take a chart (reproduced below) containing data describing arrival delays for two airlines across five destinations and complete the following tasks:
+
+(1) Create a .CSV file (or optionally, a MySQL database!) that includes all of the information above.  You're encouraged to use a "wide" structure similar to how the information appears above, so that you can practice tidying and transformations as described below.  
+(2) Read the information from your .CSV file into R, and use tidyr and dplyr as needed to tidy and transform your data.  
+(3) Perform analysis to compare the arrival delays for the two airlines. 
+
+![](C:\Users\Lelan\Desktop\wide_chart.png)  
+  
+
+##Create Database Including Chart Information in Wide Structure  
+
+The chart information was loaded to a MySQL database schema called 'wide_flights' as a table which was also called 'wide_flights'.  The SQL scripts to build the database and load the data is available on GitHub:  
+
+<https://github.com/LelandoSupreme/DATA607/blob/master/Randles_Week5_Assignment_DATA607_tidydata.sql>  
+
+The 'wide_flights' table has 8 columns: id, airline, arrival_status, los_angeles, phoenix, san_diego, san_francisco, and seattle.  The data was loaded exactly as provided in the chart except I added a primary key id, the airline column was given a name and blank rows filled in (except the separator row, of course), and the column holding values 'on time' or 'delayed' was named 'arrival_status'.  
+
+
+## Read MySQL Table into R, Then Tidy and Tranform Data  
+
+To facilitate the loading of data from MySQL to an R data frame, I loaded the "RMySQL" package.
+
+```{r results='hide', message=FALSE, warning=FALSE}
+install.packages("RMySQL",repos='http://cran.wustl.edu/')
+library(RMySQL)
+```  
+
+Once the package was installed, I connected to the database and created a data frame from the 'wide_flights' table.  
+
+```{r load-data, eval=TRUE}
+# Get the MySQL
+drv = dbDriver("MySQL")
+# Create a connection to the MySQL database
+con <- dbConnect(drv, user = 'root', password = 'temp1002!', dbname = 'wide_flights')
+# Create the wide_flights data frame
+wide_flights <- dbReadTable(con, "wide_flights")
+# View the wide_flights data frame
+head(wide_flights)
+```
+
+Hadley Wickham defines "tidy data" (<http://vita.had.co.nz/papers/tidy-data.pdf.>) as data which is structured such that:
+1. Each variable forms a column.
+2. Each observation forms a row.
+3. Each type of observational unit forms a table.  
+
+In the case of the chart data, there are four variables: the airline, the destination city, the number of on time arrivals, and the number of delayed arrivals. Since each row is an observation, we can see we have ten observations of the four variables. In this case, there is only one type of observational unit, so one table will be appropriate.
+
+To tidy and transform the data, I loaded the tidyr package (<https://cran.r-project.org/web/packages/tidyr/tidyr.pdf>) and the dplyr package (<https://cran.r-project.org/web/packages/dplyr/dplyr.pdf>).  
+
+```{r results='hide', message=FALSE, warning=FALSE}
+install.packages("tidyr",repos='http://mirrors.nics.utk.edu/cran/')
+library(tidyr)
+library(dplyr)
+```  
+  
+Once the package was loaded, I pipelined four commands to created the tidy data frame 'flights'.  The steps performed:
+1. Turn the five city columns into values in a 'destination' column using the gather function.
+2. Turn the 'on time' and 'delayed' values in the arrival_status column into their own columns using the spread function.
+3. Use the group_by function to compress the 20 rows into 10 rows based on unique combinations of airline and desintation.
+4. Use the summarise function to total the delayed and on_time columns to get rid of the NA values created in step 3.
+
+```{r tidy_tranform, eval=TRUE}
+# Pipelined commands executing steps shown above
+flights <- wide_flights %>% gather("destination", "n", 4:8) %>% spread(arrival_status, n) %>% group_by(airline, destination) %>% summarise(delayed = sum(delayed, na.rm = TRUE), on_time = sum(`on time`, na.rm = TRUE))
+flights
+```  
+  
+##Analysis to Compare Arrival Delays for the Two Airlines.  
+
+```{r analysis, eval=TRUE}
+# Overall portion of delayed flights by airline without respect to destination
+flights %>% group_by(airline) %>% summarise(ttl_delayed = sum(delayed), ttl_on_time = sum(on_time), ttl_ratio = ttl_delayed / (ttl_delayed + ttl_on_time))
+# Comparison of portion of delays by destination
+# Start by adding column showing portion of flights delayed
+flights <- mutate(flights, delayed_ratio = delayed / (delayed + on_time))
+# Load ggplot2 to create side by side bar charts
+library("ggplot2")
+# Create paired bar charts showing ratio of delayed flights by airline by destination
+ggplot(data=flights, aes(x=destination, y=delayed_ratio, fill=airline)) + geom_bar(stat="identity", position=position_dodge(), colour="black") + xlab("Destination") + ylab("Ratio Delayed") + scale_fill_hue(name="Airline")
+```  
+
+Without respect to destination, we can see that 13.27% of ALASKA airlines flights are delayed, while 10.90% of American West airlines flights are delayed.  However, the bar chart shows us that American West has a higher portion of late flights for every destination.  
