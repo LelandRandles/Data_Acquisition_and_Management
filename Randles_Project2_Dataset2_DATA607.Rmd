@@ -1,0 +1,126 @@
+---
+title: "Project 2 - Dataset 2 (Income by Gender), DATA607 Fall 2016"
+author: "Leland Randles"
+date: "October 8, 2016"
+output: html_document
+---
+
+### Income by Age and Sex Dataset from Census.gov - Posted by Ahsanul Choudhury
+
+For this project, the objective is to select three untidy data sets posted by students on the class discussion board, and - for each of the three datasets - read the data into R, tidy the data, and complete the analysis suggested by the classmate in the discussion board post.
+
+This R markdown file explains the steps used to complete the analysis for the second dataset I selected, which was posted by Ahsanul Choudhury. It is a dataset from the census.gov website showing income by age range by sex (<http://www.census.gov/population/age/data/files/2012/2012gender_table17.csv>).  
+
+The dataset in the .csv was loaded to a MySQL database table (see "Create Database Containing Census Data" section).  To execute that load, the .csv was saved as an Excel file, the desired data was organized in the Excel file, and then INSERT SQL statements were generated in the Excel file.  
+
+You can see these steps by opening the .xlsx file, which is available at this GitHub location:  <https://github.com/LelandoSupreme/DATA607/blob/master/gender_income.xlsx>
+
+Columns Y thru AJ, rows 21-45 contain the formulas used to organize the data.  Column AK, rows 22 thru 45 contain the formulas used to create the INSERT strings which were used in the SQL code.
+  
+
+#### Create Database Containing Census Data  
+
+The Crosstab data was loaded to a MySQL database schema called 'project_two' into a table called 'gender_income'. The SQL scripts to build the database and load the data are available on GitHub at the link below. Please note that the GitHub file includes the code used for all three datasets selected for the project, not just this dataset.  In the code, you can see the INSERT statements which were cut and pasted from the Excel file:  
+
+<https://github.com/LelandoSupreme/DATA607/blob/master/Randles_Project2_DATA607.sql>  
+
+
+#### Read gender_income MySQL Table into R
+
+To facilitate the loading of data from MySQL to an R data frame, I loaded the "RMySQL" package.
+
+```{r results='hide', message=FALSE, warning=FALSE}
+install.packages("RMySQL",repos='http://cran.wustl.edu/')
+library(RMySQL)
+```  
+
+Once the package was installed, I connected to the database and created a data frame from the 'gender_income' table.  
+
+```{r load-data, eval=TRUE}
+# Get the MySQL
+drv = dbDriver("MySQL")
+# Create a connection to the MySQL database
+con <- dbConnect(drv, user = 'root', password = 'temp1002!', dbname = 'project_two')
+# Create the gender_income data frame
+gender_income <- dbReadTable(con, "gender_income")
+# View the gender_income data frame
+head(gender_income)
+```
+
+As you can see, the 'gender_income' table has 12 columns: sex, age_range, under_5000, x5000_to_9999, x10000_to_14999, x15000_to_19999, x20000_to_24999, x25000_to_34999, x35000_to_49999, x50000_to_74999, x75000_to_99999, and x_100000_and_over.  R has added x in front of the columns which started with a number character in RMySQL.
+
+
+#### Tidy and Tranform Data  
+
+Hadley Wickham defines "tidy data" (<http://vita.had.co.nz/papers/tidy-data.pdf.>) as data which is structured such that:  
+1. Each variable forms a column.  
+2. Each observation forms a row.  
+3. Each type of observational unit forms a table. 
+
+In the case of the gender_income data, there are four variables: sex, age range, income range, and number of persons. To make each row an observation, we need a row for every sex/age range/income range combination. In this case, there is only one type of observational unit, so one table will be appropriate.  
+
+To tidy and transform the data, I loaded the tidyr package (<https://cran.r-project.org/web/packages/tidyr/tidyr.pdf>) and the dplyr package (<https://cran.r-project.org/web/packages/dplyr/dplyr.pdf>).  
+
+```{r results='hide', message=FALSE, warning=FALSE}
+install.packages("tidyr",repos='http://mirrors.nics.utk.edu/cran/')
+library(tidyr)
+library(dplyr)
+```  
+  
+Once the packages were loaded, I pipelined three functions to create the tidy data frame 'gender_income'.  The steps performed:  
+1. Turn the income range columns into values in an 'income_range' column using the gather function.  
+2. Rename the 'n' column created in step 1 to 'num_persons'.
+3. Replace the x's in the values in the income_range column using the transmute function.  
+
+```{r tidy_tranform1, eval=TRUE}
+# Pipelined commands executing steps shown above
+gender_income <- gender_income %>% gather("income_range", "n", 3:12) %>% rename(num_persons = n) %>% transmute(sex = sex, age_range = age_range, income_range = gsub("X","",income_range), num_persons = num_persons)
+# View results
+head(gender_income)
+```  
+  
+  
+#### Income by Sex by Age Ranges  
+
+The suggested analysis is to "compare incomes between male and female for the same age group".  Because the total number of persons within each age_range varies by sex, I created a data frame containing the totals by sex by age_range (sex_age_ttls).  I then joined the sex_age_ttls data frame to the gender_income data frame to compute percentages of persons within each income_range by sex/age_range. This will allow me to compare the percentages of persons in each income_range by sex for each age_range.  
+
+```{r tidy_tranform2, eval=TRUE}
+# Create data frame of total persons by sex and age_range
+sex_age_ttls <- gender_income %>% group_by(sex, age_range) %>% summarize(sum(num_persons)) %>% rename(num_persons_by_age = `sum(num_persons)`) 
+# Finalized gender_income dataset
+gender_income <- gender_income %>% left_join(sex_age_ttls, by = c("sex", "age_range")) %>% mutate(income_range_perc = num_persons / num_persons_by_age)
+# View results
+head(gender_income)
+```  
+  
+Next, I created line graphs for each age range plotting percentages within each income range by sex:  
+  
+```{r analysis, eval=TRUE}
+# Load ggplot2 to create line chart
+library("ggplot2")
+# Create line graph for age 15-17
+ggplot(data=filter(gender_income, age_range == "15 to 17 years"), aes(x=factor(filter(gender_income, age_range == "15 to 17 years")$income_range, levels=c("under_5000", "5000_to_9999", "10000_to_14999", "15000_to_19999", "20000_to_24999", "25000_to_34999", "35000_to_49999", "50000_to_74999", "75000_to_99999", "100000_and_over")), y=income_range_perc, group=sex, colour=sex)) + geom_line(size = 1.5) + geom_point(size=3) + xlab("Income Range") + ylab("Percentage") + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + ggtitle("Age Range 15 to 17 years old")
+# Create line graph for age 18-24
+ggplot(data=filter(gender_income, age_range == "18 to 24 years"), aes(x=factor(filter(gender_income, age_range == "18 to 24 years")$income_range, levels=c("under_5000", "5000_to_9999", "10000_to_14999", "15000_to_19999", "20000_to_24999", "25000_to_34999", "35000_to_49999", "50000_to_74999", "75000_to_99999", "100000_and_over")), y=income_range_perc, group=sex, colour=sex)) + geom_line(size = 1.5) + geom_point(size=3) + xlab("Income Range") + ylab("Percentage") + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + ggtitle("Age Range 18 to 24 years old")
+# Create line graph for age 25-29
+ggplot(data=filter(gender_income, age_range == "25 to 29 years"), aes(x=factor(filter(gender_income, age_range == "25 to 29 years")$income_range, levels=c("under_5000", "5000_to_9999", "10000_to_14999", "15000_to_19999", "20000_to_24999", "25000_to_34999", "35000_to_49999", "50000_to_74999", "75000_to_99999", "100000_and_over")), y=income_range_perc, group=sex, colour=sex)) + geom_line(size = 1.5) + geom_point(size=3) + xlab("Income Range") + ylab("Percentage") + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + ggtitle("Age Range 25 to 29 years old")
+# Create line graph for age 30-34
+ggplot(data=filter(gender_income, age_range == "30 to 34 years"), aes(x=factor(filter(gender_income, age_range == "30 to 34 years")$income_range, levels=c("under_5000", "5000_to_9999", "10000_to_14999", "15000_to_19999", "20000_to_24999", "25000_to_34999", "35000_to_49999", "50000_to_74999", "75000_to_99999", "100000_and_over")), y=income_range_perc, group=sex, colour=sex)) + geom_line(size = 1.5) + geom_point(size=3) + xlab("Income Range") + ylab("Percentage") + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + ggtitle("Age Range 30 to 34 years old")
+# Create line graph for age 35-39
+ggplot(data=filter(gender_income, age_range == "35 to 39 years"), aes(x=factor(filter(gender_income, age_range == "35 to 39 years")$income_range, levels=c("under_5000", "5000_to_9999", "10000_to_14999", "15000_to_19999", "20000_to_24999", "25000_to_34999", "35000_to_49999", "50000_to_74999", "75000_to_99999", "100000_and_over")), y=income_range_perc, group=sex, colour=sex)) + geom_line(size = 1.5) + geom_point(size=3) + xlab("Income Range") + ylab("Percentage") + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + ggtitle("Age Range 35 to 39 years old")
+# Create line graph for age 40-44
+ggplot(data=filter(gender_income, age_range == "40 to 44 years"), aes(x=factor(filter(gender_income, age_range == "40 to 44 years")$income_range, levels=c("under_5000", "5000_to_9999", "10000_to_14999", "15000_to_19999", "20000_to_24999", "25000_to_34999", "35000_to_49999", "50000_to_74999", "75000_to_99999", "100000_and_over")), y=income_range_perc, group=sex, colour=sex)) + geom_line(size = 1.5) + geom_point(size=3) + xlab("Income Range") + ylab("Percentage") + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + ggtitle("Age Range 40 to 44 years old")
+# Create line graph for age 45-49
+ggplot(data=filter(gender_income, age_range == "45 to 49 years"), aes(x=factor(filter(gender_income, age_range == "45 to 49 years")$income_range, levels=c("under_5000", "5000_to_9999", "10000_to_14999", "15000_to_19999", "20000_to_24999", "25000_to_34999", "35000_to_49999", "50000_to_74999", "75000_to_99999", "100000_and_over")), y=income_range_perc, group=sex, colour=sex)) + geom_line(size = 1.5) + geom_point(size=3) + xlab("Income Range") + ylab("Percentage") + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + ggtitle("Age Range 45 to 49 years old")
+# Create line graph for age 50-54
+ggplot(data=filter(gender_income, age_range == "50 to 54 years"), aes(x=factor(filter(gender_income, age_range == "50 to 54 years")$income_range, levels=c("under_5000", "5000_to_9999", "10000_to_14999", "15000_to_19999", "20000_to_24999", "25000_to_34999", "35000_to_49999", "50000_to_74999", "75000_to_99999", "100000_and_over")), y=income_range_perc, group=sex, colour=sex)) + geom_line(size = 1.5) + geom_point(size=3) + xlab("Income Range") + ylab("Percentage") + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + ggtitle("Age Range 50 to 54 years old")
+# Create line graph for age 55-59
+ggplot(data=filter(gender_income, age_range == "55 to 59 years"), aes(x=factor(filter(gender_income, age_range == "55 to 59 years")$income_range, levels=c("under_5000", "5000_to_9999", "10000_to_14999", "15000_to_19999", "20000_to_24999", "25000_to_34999", "35000_to_49999", "50000_to_74999", "75000_to_99999", "100000_and_over")), y=income_range_perc, group=sex, colour=sex)) + geom_line(size = 1.5) + geom_point(size=3) + xlab("Income Range") + ylab("Percentage") + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + ggtitle("Age Range 55 to 59 years old")
+# Create line graph for age 60-64
+ggplot(data=filter(gender_income, age_range == "60 to 64 years"), aes(x=factor(filter(gender_income, age_range == "60 to 64 years")$income_range, levels=c("under_5000", "5000_to_9999", "10000_to_14999", "15000_to_19999", "20000_to_24999", "25000_to_34999", "35000_to_49999", "50000_to_74999", "75000_to_99999", "100000_and_over")), y=income_range_perc, group=sex, colour=sex)) + geom_line(size = 1.5) + geom_point(size=3) + xlab("Income Range") + ylab("Percentage") + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + ggtitle("Age Range 60 to 64 years old")
+# Create line graph for age 65 years and over
+ggplot(data=filter(gender_income, age_range == "65 years and over"), aes(x=factor(filter(gender_income, age_range == "65 years and over")$income_range, levels=c("under_5000", "5000_to_9999", "10000_to_14999", "15000_to_19999", "20000_to_24999", "25000_to_34999", "35000_to_49999", "50000_to_74999", "75000_to_99999", "100000_and_over")), y=income_range_perc, group=sex, colour=sex)) + geom_line(size = 1.5) + geom_point(size=3) + xlab("Income Range") + ylab("Percentage") + theme(axis.text.x=element_text(angle = -90, hjust = 0)) + ggtitle("Age Range 65 and Over")
+```  
+
+The charts show a consistent pattern across all age ranges except the two lowest age ranges. Also, the pattern becomes more pronounced as the age ranges get older: a larger percentage of females in the lower income ranges and a higher percentage of males in the higher income ranges. The income range where the ratios cross is usually $50,000-75,000.  
+  
