@@ -2,7 +2,7 @@
 	{
 	"BookID" : 1, 
 	"Title" : "Hadoop Application Architectures", 
-	"Authors" :  "Mark Grover, Ted Malaska, Jonathan Seidman, Gwen Shapira", 
+	"Authors" : "Mark Grover, Ted Malaska, Jonathan Seidman, Gwen Shapira", 
     	"Year" : 2015, 
         "Publisher" : "O'Reilly", 
     	"Edition" : "1st", 
@@ -11,7 +11,7 @@
 	{
 	"BookID" : 2, 
 	"Title" : "Hadoop in Practice", 
-	"Authors" :  "Alex Holmes", 
+	"Authors" : "Alex Holmes", 
     	"Year" : 2015, 
         "Publisher" : "Manning", 
     	"Edition" : "2nd", 
@@ -20,7 +20,7 @@
 	{
 	"BookID" : 3, 
 	"Title" : "Apache Sqoop Cookbook", 
-	"Authors" :  "Kathleen Ting, Jarek Jarcec Cecho", 
+	"Authors" : "Kathleen Ting, Jarek Jarcec Cecho", 
     	"Year" : 2015, 
         "Publisher" : "O'Reilly", 
     	"Edition" : "1st", 
