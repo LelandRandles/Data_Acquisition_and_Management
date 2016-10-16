@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<books>
+  <BookID id="1">
+    <Title>"Hadoop Application Architectures"</Title>
+    <Authors>"Mark Grover, Ted Malaska, Jonathan Seidman, Gwen Shapira"</Authors>
+    <Year>2015</Year>
+    <Publisher>"O'Reilly"</Publisher>
+    <Edition>"1st"</Edition>
+    <ISBN>"978-1-491-90008-6"</ISBN>
+  </BookID>
+  <BookID id="2">
+    <Title>"Hadoop in Practice"</Title>
+    <Authors>"Alex Holmes"</Authors>
+    <Year>2015</Year>
+    <Publisher>"Manning"</Publisher>
+    <Edition>"2nd"</Edition>
+    <ISBN>"978-1-617292-22-4"</ISBN>
+  </BookID>
+  <BookID id="3">
+    <Title>"Apache Sqoop Cookbook"</Title>
+    <Authors>"Kathleen Ting, Jarek Jarcec Cecho"</Authors>
+    <Year>2015</Year>
+    <Publisher>"O'Reilly"</Publisher>
+    <Edition>"1st"</Edition>
+    <ISBN>"978-1-449-36462-5"</ISBN>
+  </BookID>
+</books>
