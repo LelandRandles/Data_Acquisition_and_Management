@@ -1,0 +1,61 @@
+---
+title: "Week 7 Assignment, DATA607 Fall 2016"
+author: "Leland Randles"
+date: "October 16, 2016"
+output: html_document
+---
+
+### Working With XML and JSON in R  
+
+The task assigned is to pick three favorite books on one of our favorite subjects, and then manually create three files which contain the information:  1) an html file, 2) an xml file, and 3) a json file. Then, load those files into three separate R data frames and see if the data frames are identical.  
+
+#### Creating Files and Posting to GitHub Pages Repository  
+
+To facilitate the files being available to anyone on the web, I created a gh-pages branch in my GitHub repository for the course (<https://github.com/LelandoSupreme/DATA607/tree/gh-pages>) and linked that repository to a newly registered domain called <http://www.assignment7.com>. Then I committed the three files I'd created (books.html, books.xml, and books.json) to the gh-pages repository, making them available at my domain. To see the raw files, click the links below:  
+  
+HTML: <https://raw.githubusercontent.com/LelandoSupreme/DATA607/gh-pages/books.html>  
+XML: <https://raw.githubusercontent.com/LelandoSupreme/DATA607/gh-pages/books.xml>  
+JSON: <https://raw.githubusercontent.com/LelandoSupreme/DATA607/gh-pages/books.json>  
+  
+
+#### Read Files into R Data Frames    
+  
+To facilitate, I installed the 'XML' and 'jsonlite' packages:    
+  
+```{r results='hide', message=FALSE, warning=FALSE}
+install.packages("XML",repos='http://cran.wustl.edu/')
+library(XML)
+install.packages("jsonlite",repos='http://cran.wustl.edu/')
+library(jsonlite)
+```  
+  
+First, I loaded the html file to a data frame. (The table can be viewed as displayed here: <http://assignment7.com/books.html>)  
+  
+```{r html, eval=TRUE}
+# Use readHTMLTable to load to data frame
+html_books <- data.frame(readHTMLTable("http://www.assignment7.com/books.html"))
+# View result
+html_books
+```  
+  
+Second, I loaded the XML file to a data frame:  
+  
+```{r xml, eval=TRUE}
+# Use readHTMLTable to load to data frame
+xml_books <- xmlToDataFrame("http://www.assignment7.com/books.xml")
+# View result
+xml_books
+```  
+  
+Lastly, I loaded the JSON file to a data frame:  
+  
+```{r json, eval=TRUE}
+# Use readHTMLTable to load to data frame
+json_books <- data.frame(fromJSON("http://www.assignment7.com/books.json", simplifyDataFrame = TRUE))
+# View result
+json_books
+```  
+  
+The three data frames are identical except for the column headers. The column headers on books_html has NULL. before every column name. The books_xml column headers are just the header. The books_json column headers have books. before every column name. I am not sure why this is happening.  
+
+Also, I doubt I am handling the authors the way the assignment intends. If I look at the sample XML file in the text (page 42), the file handles actors by using a smart tag with two attributes. I suppose the authors tab in my XML file could have included four attributes to contain up to four author names. Sames goes for the JSON file.  The value key-value pair could have had an array of authors as the value.  I am not sure how you would make a comparable HTML table, though.  
