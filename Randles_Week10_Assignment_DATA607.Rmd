@@ -1,0 +1,94 @@
+---
+title: "Week 10 Assignment, DATA607 Fall 2016"
+author: "Leland Randles"
+date: "November 6, 2016"
+output: html_document
+---
+
+### Document Classification
+
+The task assigned is to classify new "test" documents using already classified "training" documents. We could either use the spam/ham files suggested in the assignment or select our own documents (for example, from our own spam folder or from scraping text off the web). I chose to use the spam/ham files suggested in the assignment.  
+  
+<br></br>
+
+#### Download Data and Input Into Corpora
+
+I downloaded the "20030228_easy_ham_2.tar.bz2" and "20050311_spam_2.tar.bz2" files from <https://spamassassin.apache.org/publiccorpus>. After unzipping the files, I saved the first file into a folder called "easy_ham_2" and the second file into a folder called "spam_2", which were both located in my working directory. Next, I installed the "tm" package (<https://cran.r-project.org/web/packages/tm/index.html>) so I could input the documents into a text mining Corpus:
+
+```{r results='hide', message=FALSE, warning=FALSE}
+install.packages("tm", repos='http://cran.wustl.edu/')
+library("tm")
+```  
+  
+I then created two Corpora - one for the spam documents and one for the ham documents - and created document-level metadata to identify a document as spam (ind = 1) or ham (ind = 0). Finally, I created a combined Corpus which was ordered so that the training data and the test data would both include about the same percentage of spam and ham:
+
+```{r corpora}
+# Read documents into Corpora
+spam_corpus <- Corpus(DirSource("./spam_2", pattern = "[[:digit:]]"))
+ham_corpus <- Corpus(DirSource("./easy_ham_2", pattern = "[[:digit:]]"))
+# Add metadata indicator for spam or not spam 
+meta(spam_corpus, "ind") <- 1
+meta(ham_corpus, "ind") <- 0
+# Create combined corpus ordered for RTextTools
+spamham_corpus <- c(ham_corpus[1:1120], spam_corpus[1:1117], ham_corpus[1121:1400], spam_corpus[1118:1396])
+```  
+  
+<br></br>
+  
+#### Perform Supervised Learning and Compare to True Classification 
+
+I used the "RTextTools" package (<https://cran.r-project.org/web/packages/RTextTools/index.html>) to perform supervised classification:
+  
+```{r results='hide', message=FALSE, warning=FALSE}
+install.packages("RTextTools",repos='http://cran.wustl.edu/')
+library(RTextTools)
+```  
+  
+First I created a Document-Term matrix from the Corpus and eliminated sparse teams (terms which appeared in 10 documents or less):  
+
+```{r sl1}
+# Create Document-Term Matrix
+dtm <- DocumentTermMatrix(spamham_corpus)
+# Remove sparse terms
+dtm <- removeSparseTerms(dtm, 1-(10/length(spamham_corpus)))
+```  
+  
+Then I created spam vs. ham labels using the metadata from the combined Corpus. The labels are referenced in the creation of the container object which is used by RTextTools for classification. Next I created the container object, trained three models (support vector machines, random forest, and maximum entropy), and then used those models to classify the test data:  
+
+```{r sl2}
+# Create labels to use when creating container
+spam_labels <- unlist(meta(spamham_corpus))
+# Create Container used by RTextTools package to execute estimation procedures
+container <- create_container(dtm, labels = spam_labels, trainSize = 1:2237, testSize = 2238:2796, virgin = FALSE)
+# Train models
+svm_model <- train_model(container, "SVM")
+tree_model <- train_model(container, "TREE")
+maxent_model <- train_model(container, "MAXENT")
+# Run classifications
+svm_out <- classify_model(container, svm_model)
+tree_out <- classify_model(container, tree_model)
+maxent_out <- classify_model(container, maxent_model)
+```  
+  
+<br></br>
+
+#### Compare Performance of Models to True Classification for Test Documents
+
+I created a data frame which contains the true classification labels for the test data set as well as the classications estimated by each model. I then compared the results from each model to the true labels to see how accurate they were:
+
+```{r sl3}
+# Data frame containing true classifications and classification 
+# estimated by each model for all of the test documents
+labels_out <- data.frame(correct_label = spam_labels[2238:2796], svm = svm_out[, 1], tree = tree_out[, 1], maxent = maxent_out[, 1], stringsAsFactors = FALSE)
+# See how support vector machines performed using counts and proportions
+table(labels_out[, 1] == labels_out[, 2])
+prop.table(table(labels_out[, 1] == labels_out[, 2]))
+# See how random forest performed using counts and proportions
+table(labels_out[, 1] == labels_out[, 3])
+prop.table(table(labels_out[, 1] == labels_out[, 3]))
+# See how maximum entropy performed using counts and proportions
+table(labels_out[, 1] == labels_out[, 4])
+prop.table(table(labels_out[, 1] == labels_out[, 4]))
+```  
+  
+The support vector machines and maximum entropy models performed exactly the same, and both were much more accurate than the random forest model.  
