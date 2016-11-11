@@ -1,0 +1,53 @@
+---
+title: "Discussion 11: Recommender Systems"
+author: "Leland Randles"
+date: "November 10, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview 
+
+<http://www.allmusic.com> is a music encyclopedia website where users can search a large database of artists, songs, albums, etc. It's one of my favorite sites for finding discographies, biography info, songwriting credits, and so forth, but it is not a site for listening to music a la Pandora or those kinds of sites.
+  
+
+## Scenario Design
+
+*Who are your target Users?* Music fans
+
+*What are their key goals?* The users' go to the site to find information about artists, music, songs and albums.
+
+*How can you help them accomplish those goals?* The site can help them accomplish those goals by making it easy for users to find information about musicians and make associations between musicians, genres, etc.  
+  
+
+## Reverse Engineering  
+  
+The site has a "Recommendations" section which is only active if you register. The section is not overly impressive.  More on that later.  Also, when you search for any artist it provides a section which lists "associated" artists, "similar" artists, and "influenced by" artists. To test the site, I entered one of my favorite bands, which I saw in Atlanta last night, Guided by Voices. It provided the following for the aforementioned categories:  
+
+"Related Artists"  
+Associated with Robert Pollard  
+Similar to Sebadoh  
+Similar to Pavement  
+Similar to Grifters  
+Influenced by Bob Mould  
+Influenced by The Cars  
+  
+I then went to the "Recommendations" link.  The first time to the link it said "We don't know enough about you to start personalizing your recommendations yet. Use the area below to tell us some of your favorite bands, artists or musicians so we can start making recommendations, or you can browse the site and start rating some of your favorite albums that way."  
+  
+There are 4 slots, So I entered some of my favorites across multiple time periods/genres (specifically excluding Guided by Voices) to see what happened.  I entered Fairport Convention, The Pixies, Marvin Gaye and Big Star and then clicked the See Recommendations button.  
+  
+The recommendations were mainly a bunch of albums by these artists or off-shoots/solo projects by these artists, but there were some new artists recommended: Midlake, Steeleye , Kirsty MacColl, Sam Lee, Mathews Southern Comfort (never heard of any of these, guessing they are all British/Irish folk bands like Fairport Convention). Then there was also U2, Sloan, INXS, Billy Bragg, The Tragically Hip. Then some other 60's stuff like the Byrds, Donovan, Elvis. Then also REM, The Smiths, Sting, etc.  
+  
+That was a first batch of recommendations. But, if you scrolled down, new recommendations would appear. Based on what they were, I got the impression they were additional "more distant" branches of the initial set of recommendations. It didn't take long after a few more scrolls to be coming across wildly different stuff than the original list of returned recommendations.  
+  
+Next, I did another search just to see what would happen.  I entered "Brittany Spears", a musician I don't care for, but didn't click on the returned search link.  I went back to the Recommendations link and nothing had chanaged, my recommendations were exactly the same.  I then searched for The Kinks and not only clicked on the link, I browsed around their artist page (biography, discography) for a while.  Oddly, when I went back to the Recommended page, nothing had really changed. I was expected a bunch of British Invasion bands to now be included like The Who, The Beatles, Rolling Stones, etc., but that was not the case.  
+  
+  
+## Specific Recommendations  
+
+The "Associated with", "Similar to"", and "Influenced by" fuctionality seems pretty good and is probably relativately simply maintained off-line with regular updpates. I don't think it is stellar or anything, and let's face it some of these dimensions are a matter of opinion anyway. Some fans of a particular act would enthusiastically debate about what artists infuenced an act, for example.  
+
+The recommendation page should be improved dramatically, in my opinion. It should be much more cognizant of your browsing history.
