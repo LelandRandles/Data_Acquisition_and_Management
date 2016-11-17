@@ -1,0 +1,71 @@
+---
+title: "Project 4: NoSQL Migration"
+author: "Leland Randles"
+date: "November 17, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Assignment
+
+The task assigned was to take information from a relational database and migrate it to a NoSQL database of our choosing. I chose to migrate the 'flights' database we loaded to MySQL in Week 0. For the NoSQL database, I selected MongoDB. I downloaded and installed MongoDB from their website: <https://www.mongodb.com/download-center?jmp=nav#community>
+  
+<br></br>  
+
+#### Overview of Approach  
+  
+I started with an internet search on SQL-to-MongoDB migration strategies. I was curious whether the migration should be done manually, and if so, what tranformations were needed and how to designate the keys for the key-value pairs.   
+
+In the course of my research, I came across the web site for a Ruby gem called 'mongify' (<http://mongify.com/>) which "is a data translator system for moving your SQL data to MongoDB". I decided I would try to execute my migration using mongify.
+
+First, I had to download and install Ruby for Windows: <http://rubyinstaller.org/>  Next, I downloaded the mongify gem. This proved to be a very time-consuming endeavor because the mongify Ruby gem requires several other Ruby gems, which in turn require other Ruby gems, etc. But eventually it was installed and ready to use. Especially critical were the 'mysql' and 'mysql2' gems needed for Ruby to communicate with MySQL.  
+
+<br></br>
+
+#### Executing the Migration  
+
+The first step in the mongify process is to create a `database.config` file designating the Ruby gem to use as the adapter as well as the MySQL host, username, password and database. The file also specifies the name of the MongoDB host and database:  
+
+![database.config](C:\Users\Lelan\Documents\CUNY\DATA607\Project4\database_config.png)  
+
+<br></br>
+
+Once the `database.config` file is created, the database translation file can be generated using the `mongify translation database.config > translation.rb` command. This takes the MySQL database specified ('flights') and converts it to a MongoDB database file called 'translation.rb' which can be used to generate a MongoDB:  
+
+![translation.rb](C:\Users\Lelan\Documents\CUNY\DATA607\Project4\translation_rb.png) 
+<br></br>
+
+Finally, to convert the data into a MongoDB database, I ran the `mongify process database.config translation.rb` command:  
+  
+![translation.rb](C:\Users\Lelan\Documents\CUNY\DATA607\Project4\process1.png)
+![](C:\Users\Lelan\Documents\CUNY\DATA607\Project4\process2.png)  
+  
+<br></br>
+  
+#### View Data in MongoDB  
+  
+Once the migration process was complete, I opened the MongoDB CLI and viewed the databases. Then I set the active database to 'flights' and viewed the collections included in the migrated databases:
+
+![Collections in 'flights' database](C:\Users\Lelan\Documents\CUNY\DATA607\Project4\MongoDB1.png)  
+  
+<br></br>
+
+Lastly, I viewed the first 20 records of each of the collections using the find command:  
+
+![airlines](C:\Users\Lelan\Documents\CUNY\DATA607\Project4\MongoDB_Airlines.png)  
+  
+![airports](C:\Users\Lelan\Documents\CUNY\DATA607\Project4\MongoDB_Airports.png)  
+  
+![flights](C:\Users\Lelan\Documents\CUNY\DATA607\Project4\MongoDB_Flights.png)  
+  
+![planes](C:\Users\Lelan\Documents\CUNY\DATA607\Project4\MongoDB_Planes.png)  
+  
+![weather](C:\Users\Lelan\Documents\CUNY\DATA607\Project4\MongoDB_Weather.png)  
+
+
+
+
+
