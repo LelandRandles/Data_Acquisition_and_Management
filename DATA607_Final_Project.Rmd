@@ -1,0 +1,220 @@
+---
+title: "DATA607 - Final Project"
+author: "Leland Randles"
+date: "December 18, 2016"
+output: html_document
+---
+
+```{r include=FALSE, cache=FALSE}
+library(knitr)
+## set global chunk options
+opts_chunk$set(fig.path='figure/manual-', cache.path='cache/manual-', fig.align='center', fig.show='hold', par=TRUE)
+```
+  
+## Introduction  
+
+OTC Markets Group is a New York City-based publicly traded company which runs a securities exchange consisting of approximately 10,000 U.S. and international securities. The securities traded via OTC Markets Group are not available on the major US exchanges, and range from mutli-national blue chips to highly speculative caveat emptor "penny" stocks.  
+
+The purpose of this project is to use automation to browse and download data for a set of securities via the OTC Markets web site. The web site includes a stock screener (<http://www.otcmarkets.com/research/stock-screener>) which allows a user to generate a list of securities based on selected criteria, and a user can look up a specific stock symbol to download historical price data and other data, but there is no way to download security-specific data for multiple securities at one time.  
+
+OTC Markets does offer subscription-based data services for institutions, but it is prohibitive for an individual to make use of those services from both a cost perspective and a technical requirements perspective.  
+  
+<br></br>
+  
+### Downloading Selenium Standalone Server and Chrome Web Driver  
+  
+Selenium is a browser automation tool primarily used for testing web applications. The `RSelenium` package is an R client for the Selenium Remote Webdriver. To use RSelenium, you must download the Selenium Standalone Server and a web driver for the browser you're using (in my case, Chrome).
+
+The Selenium Standalone Server can be downloaded here: <http://selenium-release.storage.googleapis.com/index.html?path=2.53/>. I downloaded the latest version (2.53.1):
+
+![Selenium Standalone Server](C:\Users\Lelan\Documents\CUNY\DATA607\Final_Project\Selenium_Standalone.jpg)  
+  
+The Chrome Web Driver can be downloaded from here (filename is "chromedriver.exe"): <https://sites.google.com/a/chromium.org/chromedriver/downloads>  
+    
+Once both files are downloaded, start the server using the command prompt:  
+  
+![Starting Selenium Standalone Server](C:\Users\Lelan\Documents\CUNY\DATA607\Final_Project\Command_Prompt.jpg)  
+
+<br></br>
+  
+### Download List of Securities and Load to Data Frame  
+
+I started by manually downloading a list of all common stock and ordinary shares from OTC Markets' OTCQX market. OTCQX market companies must meet high financial standards, follow best practice corporate governance, demonstrate compliance with U.S. securities laws, be current in their disclosure, and be sponsored by a professional third-party advisor.  
+
+I included all types of OTCQX market stocks (International Premier, US Premier, International, and US):  
+
+![Downloading OTCQX Stocks](C:\Users\Lelan\Documents\CUNY\DATA607\Final_Project\OTC_Initial_Download.jpg)  
+
+To load to a data frame, I downloaded the `readxl` package and used the `read_excel` function. For reproducibility, put your downloaded file in a folder and save the folder path to a character vector in R named `fpath`:  
+
+```{r scr, eval = TRUE}
+install.packages("dplyr", repos='https://mirrors.nics.utk.edu/cran/')
+library(dplyr)
+install.packages("readxl", repos='https://mirrors.nics.utk.edu/cran/')
+library(readxl)
+install.packages("stringr", repos='https://mirrors.nics.utk.edu/cran/')
+library(stringr)
+# Load downloaded Excel file into data frame
+fpath <- "C:/Users/Lelan/Documents/CUNY/DATA607/Final_Project/Data/"
+scr_file <- list.files(path = fpath, pattern = "\\.xls")
+scr_list <- read_excel(paste0(fpath, scr_file[1]), skip = 4, col_names = FALSE)
+colnames(scr_list) <- c("Symbol","Security_Name","Tier","Price","Change_Perc","Vol","Sec_Type","Country","State")
+scr_list <- scr_list[!is.na(scr_list$Security_Name),]
+scr_list$ind <- recode(scr_list$Tier, `OTCQX International Premier` = "OTCQXINT", `OTCQX International` = "OTCQXINT", `OTCQX U.S. Premier` = "OTCQXUS", `OTCQX U.S.` = "OTCQXUS")
+```
+
+<br></br>
+
+### Web Automation and Data Collection Using RSelenium  
+  
+Install RSelenium and start the web browser:   
+
+```{r start, eval = FALSE}
+# Install RSelenium
+install.packages("RSelenium", repos='https://mirrors.nics.utk.edu/cran/')
+library(RSelenium)
+
+# Create Remote Driver and Open Chrome browser  
+remDr <- remoteDriver(remoteServerAddr = "localhost" 
+    , port = 4444
+    , browserName = "chrome")
+remDr$open()
+hp <- "http://www.otcmarkets.com/"
+```  
+  
+The next step is to loop through the data frame created in the prior section, downloading the price history for all of the stocks in the data frame (for reproducibility, create a folder called "Securities_Data" and a folder inside that folder called "Prices" and add the folders to the `fpath` vector, naming the new character vector `fpath_prices`). You will also need to change the Chrome download settings to point to `fpath_prices`:
+
+```{r prices_web, eval = FALSE}
+fpath_prices <- paste0(fpath,"Securities_Data/Prices/")
+remDr$setImplicitWaitTimeout(10000)
+# Loop through all securities on scr_list
+for (i in 1:nrow(scr_list)){
+  remDr$navigate(paste0(hp, "stock/", scr_list$Symbol[i], "/chart"))
+  webElem <- remDr$findElement(using = "css selector",
+     "#chartArea > iframe")
+  remDr$switchToFrame(webElem)
+  webElem <- remDr$findElement(using = "css selector", "#range2y")
+  webElem$clickElement()
+  webElem <- remDr$findElement(using = "css selector", "#dataTableBtn")
+  webElem$clickElement()
+  webElem <- remDr$findElement(using = "css selector", "#gridContainer > 
+  div:nth-child(1) > span:nth-child(1)")
+  Sys.sleep(2)
+  webElem$clickElement()
+  Sys.sleep(2)
+  file.rename(paste0(fpath_prices,"grid.xls"),
+     paste0(fpath_prices,scr_list$Symbol[i],"_Price.xls"))
+}
+```  
+  
+The above code saves each downloaded spreadsheet with a filename consisting of the symbol plus "_price.xls" in the `fpath_prices' directory:  
+
+![Price Spreadsheets](C:\Users\Lelan\Documents\CUNY\DATA607\Final_Project\Price_Spreadsheets.jpg)  
+  
+Then, the spreadsheets were combined into one data frame called `prices`:  
+
+```{r prices_df, eval = TRUE}
+fpath_prices <- paste0(fpath,"Securities_Data/Prices/")
+price_files <- list.files(path = fpath_prices, pattern = "\\.xls")
+# Create empty prices data frame 
+colClasses = c("Date", "numeric", "numeric", "numeric", "numeric", "integer", "character")
+col.names = c("Date", "Open", "High", "Low", "Close", "Volume", "Symbol")
+prices <- read.table(text = "",
+  colClasses = colClasses,
+  col.names = col.names)
+
+# Combine all Excel files into data frame
+for (i in 1:length(price_files)) 
+{
+  tmp_df <- read_excel(paste0(fpath_prices, price_files[i]), 
+    col_names = TRUE)
+  tmp_df <- tmp_df[!is.na(tmp_df$Open),]
+  tmp_df$Date <- as.Date(tmp_df$Date)
+  tmp_df$Open <- as.numeric(tmp_df$Open)
+  tmp_df$High <- as.numeric(tmp_df$High)
+  tmp_df$Low <- as.numeric(tmp_df$Low)
+  tmp_df$Close <- as.numeric(tmp_df$Close)
+  tmp_df$Volume <- as.integer(tmp_df$Volume)
+  symbol <- str_sub(price_files[i], 1, 5)
+  tmp_df$Symbol <- symbol
+  prices <- rbind(prices, tmp_df)
+  rm(tmp_df)
+}
+prices$Symbol <- gsub("_","",prices$Symbol)
+```
+  
+I also downloaded the data for the US and international OTCQX indices to use as benchmarks. For reproducibility, create a folder called "Indices" inside the "Securities_Data" folder and name the new character vector `fpath_indices`:  
+
+```{r indices_web, eval = FALSE}
+fpath_indices <- paste0(fpath,"Securities_Data/Indices/")
+remDr$setImplicitWaitTimeout(10000)
+# Create empty vector for indices
+colClasses = c("Date", "numeric", "numeric", "numeric", "numeric", "integer", "character")
+col.names = c("Date", "Open", "High", "Low", "Close", "Volume", "Symbol")
+indices <- read.table(text = "",
+  colClasses = colClasses,
+  col.names = col.names)
+# Vector of indices
+ind <- c(".OTCQXINT",".OTCQXUS")
+# Loop through ind
+for (i in 1:length(ind)){
+  remDr$navigate(paste0(hp, "index/", ind[i], "/chart"))
+  webElem <- remDr$findElement(using = "css selector",
+     "#chartArea > iframe")
+  remDr$switchToFrame(webElem)
+  webElem <- remDr$findElement(using = "css selector", "#range2y")
+  webElem$clickElement()
+  webElem <- remDr$findElement(using = "css selector", "#dataTableBtn")
+  webElem$clickElement()
+  webElem <- remDr$findElement(using = "css selector", "#gridContainer > 
+  div:nth-child(1) > span:nth-child(1)")
+  Sys.sleep(2)
+  webElem$clickElement()
+  Sys.sleep(2)
+  file.rename(paste0(fpath_indices,"grid.xls"),
+     paste0(fpath_indices,ind[i],"_Price.xls"))
+}
+```  
+
+The indices spreadsheets were combined into one data frame called `indices`:  
+  
+```{r indices_df, eval = TRUE}
+fpath_indices <- paste0(fpath,"Securities_Data/Indices/")
+indices_files <- list.files(path = fpath_indices)
+# Create empty prices data frame 
+colClasses = c("Date", "numeric", "numeric", "numeric", "numeric", "integer", "character")
+col.names = c("Date", "Open", "High", "Low", "Close", "Volume", "Symbol")
+indices <- read.table(text = "",
+  colClasses = colClasses,
+  col.names = col.names)
+
+# Combine all Excel files into data frame
+for (i in 1:length(indices_files)) 
+{
+  tmp_df <- read_excel(paste0(fpath_indices, indices_files[i]), 
+    col_names = TRUE)
+  tmp_df <- tmp_df[!is.na(tmp_df$Open),]
+  tmp_df$Date <- as.Date(tmp_df$Date)
+  tmp_df$Open <- as.numeric(tmp_df$Open)
+  tmp_df$High <- as.numeric(tmp_df$High)
+  tmp_df$Low <- as.numeric(tmp_df$Low)
+  tmp_df$Close <- as.numeric(tmp_df$Close)
+  tmp_df$Volume <- as.integer(tmp_df$Volume)
+  symbol <- str_sub(indices_files[i], 1, 7)
+  tmp_df$Symbol <- symbol
+  indices <- rbind(indices, tmp_df)
+  rm(tmp_df)
+}
+indices$Symbol <- str_replace(indices$Symbol, "OTCQXIN", "OTCQXINT")
+colnames(indices)[2:7] <- c("ind_Open","ind_High","ind_Low","ind_Close","ind_Volume","ind")
+```  
+
+Create files for Shiny App:  
+
+```{r sh, eval = TRUE}
+j1 <- inner_join(scr_list, prices, by = c("Symbol"))
+j2 <- inner_join(j1, indices, c("ind","Date"))
+```
+
+
+
